@@ -1,0 +1,31 @@
+# CMake outputs and downloaded dependencies (keep builds out of source)
+/build/
+/out/
+/cmake-build-*/
+/CMakeUserPresets.json
+
+# Visual Studio local state
+.vs/
+*.user
+*.suo
+*.VC.db
+*.VC.opendb
+
+# Godot generated cache and export credentials
+/client/.godot/
+/client/.godot/export_credentials.cfg
+
+# Runtime and release output
+/dist/
+/logs/
+/server/config/server.local.json
+*.log
+
+# Machine-specific secrets
+.env
+.env.local
+
+# OS metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
