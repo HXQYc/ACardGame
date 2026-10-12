@@ -22,6 +22,9 @@ target_include_directories(acard_cards PUBLIC
 add_library(acard_game STATIC
     game/game_deck.h
     game/game_deck.cpp
+    game/game_types.h
+    game/hand_rules.h
+    game/hand_rules.cpp
 )
 
 target_include_directories(acard_game PUBLIC

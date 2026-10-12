@@ -6,6 +6,7 @@
 
 ```text
 ACardGame/
+├── AGENTS.md
 ├── CMakeLists.txt
 ├── CMakePresets.json
 ├── .gitignore
@@ -17,7 +18,8 @@ ACardGame/
 │   ├── ARCHITECTURE.md
 │   ├── PROJECT_STRUCTURE.md
 │   ├── PROTOCOL.md
-│   └── BUILD.md
+│   ├── BUILD.md
+│   └── DEVELOPMENT_PLAN.md
 ├── server/
 │   ├── CMakeLists.txt
 │   ├── ids/
@@ -105,6 +107,8 @@ ACardGame/
 | server/CMakeLists.txt | 定义独立模块目标及依赖，避免全项目共享所有头文件目录 |
 | docs/PROTOCOL.md | 消息边界、版本、卡牌编码、请求/响应/通知字段、错误、同步与心跳；已编写第一版规范 |
 | docs/BUILD.md | 本机启动接口、跨平台构建与发布约束、验收矩阵；实际版本和命令随工程初始化补齐 |
+| docs/DEVELOPMENT_PLAN.md | 全部开发阶段、当前完成状态、验证欠账与新 session 接续入口 |
+| AGENTS.md | 助手协作约定、文档读取顺序、代码边界与检查方式 |
 
 ## 3. 卡牌与规则核心
 

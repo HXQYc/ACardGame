@@ -1,5 +1,5 @@
 /*
-* @file	game_deck.h
+* @file	    game_deck.h
 * @brief	生成捉黑 A 的牌组，并判断身份牌
 */
 
