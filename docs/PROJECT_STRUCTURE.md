@@ -1,6 +1,6 @@
 # ACard 项目结构与文件职责
 
-本文是实现前的目录蓝图，不表示所有列出的文件已存在。按模块组织，头文件与源文件放在一起。文件随实现需要创建，不先生成空壳。整体行为见 ARCHITECTURE.md，玩法见 RULE.md。
+本文是简化 Demo 的目录蓝图，不表示所有列出的文件已存在。保留规则核心拆分，外围随实际需求再抽出文件与目标。按模块组织，头文件与源文件放在一起。文件随实现需要创建，不先生成空壳。整体行为见 ARCHITECTURE.md，玩法见 RULE.md。
 
 ## 1. 总体目录
 
@@ -22,8 +22,6 @@ ACardGame/
 │   └── DEVELOPMENT_PLAN.md
 ├── server/
 │   ├── CMakeLists.txt
-│   ├── ids/
-│   │   └── ids.h
 │   ├── cards/
 │   │   ├── card.h
 │   │   ├── deck.h
@@ -37,22 +35,17 @@ ACardGame/
 │   │   ├── game_view.h / game_view.cpp
 │   │   └── settlement.h / settlement.cpp
 │   ├── room/
-│   │   ├── room.h / room.cpp
-│   │   └── room_manager.h / room_manager.cpp
-│   ├── session/
-│   │   └── session_manager.h / session_manager.cpp
+│   │   └── room.h / room.cpp
 │   ├── protocol/
 │   │   ├── messages.h
 │   │   └── message_codec.h / message_codec.cpp
 │   ├── network/
-│   │   ├── frame_codec.h / frame_codec.cpp
 │   │   ├── tcp_connection.h / tcp_connection.cpp
 │   │   └── tcp_server.h / tcp_server.cpp
 │   ├── app/
 │   │   ├── main.cpp
 │   │   ├── server_app.h / server_app.cpp
-│   │   ├── server_config.h / server_config.cpp
-│   │   └── logging.h / logging.cpp
+│   │   └── server_config.h / server_config.cpp
 │   └── config/
 │       └── server.example.json
 ├── tools/
@@ -131,23 +124,19 @@ game.cpp 先集中实现状态推进，不预先为每个阶段建立类。牌�
 | 文件 | 职责 |
 | --- | --- |
 | room/room.h/.cpp | 单个房间、座位与房主、准备、开局条件、牌局所有权、上一局有效第一名；映射 PlayerId 与本局位置 |
-| room/room_manager.h/.cpp | 持有全部房间，创建/查找/删除；不重复单房间规则 |
-| session/session_manager.h/.cpp | 会话数据与管理，ConnectionId 和临时 PlayerId 的映射、所在房间；不持有牌局手牌 |
 
-初版 Session 结构可直接放在 session_manager.h，不需要每个结构一个文件。ConnectionId、PlayerId、RoomId、GameId 使用 server/ids/ids.h 中独立的值类型，仅依赖标准库，不引入 Asio、JSON 或业务模块；acard_ids 为 header-only 目标。会话保存 ConnectionId 和可空 RoomId，不包含网络/房间头文件或对象指针。规则核心只使用本局位置，不依赖 acard_ids。
+初期 ServerApp 持有一个默认 Room，并保存会话结构及连接到玩家的映射。应用通过 Room 接口操作，不重复实现准备、开局或牌局规则。多房间需求出现时再抽出 RoomManager，会话逻辑增长时再抽出 SessionManager。共同标识按需放公共头文件，只依赖标准库，不预建 ids 目录或库；会话只保存值标识，不拥有连接或房间，核心只使用本局位置。
 
 ## 5. 网络、协议与应用
 
 | 文件 | 职责 |
 | --- | --- |
-| network/frame_codec.h/.cpp | 4 字节网络字节序长度头；拼接拆包、长度上限、残留缓冲；不解析 JSON |
 | network/tcp_connection.h/.cpp | 单个 socket 的异步读写、完整帧回调、发送队列、关闭；一次只能有一个写操作在进行 |
 | network/tcp_server.h/.cpp | 监听、接受连接、管理连接、按 ConnectionId 发送和关闭；向应用报告消息和断线 |
 | protocol/messages.h | C++ 请求/响应/通知数据结构，字段按协议定义；不含 socket |
 | protocol/message_codec.h/.cpp | JSON 与消息对象转换、字段类型/范围检查、卡牌协议编码；不执行出牌规则 |
-| app/server_app.h/.cpp | 持有并组装网络、会话、房间；握手与请求分发、身份校验、响应和状态广播、断线清理、心跳调度 |
+| app/server_app.h/.cpp | 持有网络、默认 Room 和会话映射；握手与请求分发、身份校验、响应和状态广播、断线清理、心跳调度 |
 | app/server_config.h/.cpp | 端口、地址、日志等配置与启动参数解析，检查配置是否合法 |
-| app/logging.h/.cpp | 初始化 spdlog 控制台及文件输出；日志不得无意记录所有玩家秘密手牌 |
 | app/main.cpp | 读取配置、初始化日志与应用、运行单线程事件循环、处理退出，不实现业务 |
 | config/server.example.json | 可参考的默认配置，不包含机器私有路径 |
 
@@ -155,9 +144,11 @@ Asio 类型只在网络和应用运行调度中出现。协议层可依赖规则
 
 结算和中止时，应用必须取得并排队发送最终通知/视图，再释放活动牌局；不能先释放对象再读取结果。网络回调的对象生命期必须保证有效，关闭后不得再次执行业务。
 
+分帧先在网络模块内部实现，仍须处理半包、多包、长度限制及残留缓冲，不解析 JSON；需要复用或逻辑增长时再抽出 frame_codec。日志先在应用启动处初始化，复杂后再抽文件，禁止无意记录秘密手牌。
+
 ### 所有权与异步关闭约定
 
-- ServerApp 持有 TcpServer、SessionManager、RoomManager；RoomManager 独占各 Room，Room 独占活动 Game。会话只保存值标识，跨模块操作由应用查找，不互相持有所有权。
+- ServerApp 持有 TcpServer、会话数据和一个默认 Room；Room 独占活动 Game。未来引入 RoomManager 时由其独占各 Room。会话只保存值标识，跨模块操作由应用查找，不互相持有所有权。
 - TcpServer 管理连接，连接使用共享所有权以维持异步回调期间的生命期；每个读/写/定时器回调捕获该连接的共享引用，连接向应用报告事件的回调不拥有应用。应用存活至连接关闭及取消回调排空后。
 - 连接关闭入口幂等：先标记 closing，取消计时器及 socket 操作，后续取消回调只做资源收尾，不分发帧、不推进业务。向应用报告断线最多一次；已排队写缓冲由连接持有至完成或取消，不能引用临时 JSON 字符串。
 - 房间操作返回拥有自身数据的结果值，包含待通知成员标识、最终个人视图及结算/中止数据；不得把 GameState 引用或裸指针交给异步发送队列。应用按协议顺序编码并入队后，让房间释放 Game；真正网络发送完成不需要 Game 继续存活。
@@ -170,7 +161,6 @@ Asio 类型只在网络和应用运行调度中出现。协议层可依赖规则
 | app/app.tscn/.gd | 应用根节点，组装连接、状态和界面，切换菜单/房间/牌桌/结果；不重新实现规则 |
 | app/local_server.gd | 按 BUILD.md 定位程序与指定端口，启动并重试初始连接，完成所有权握手与入房后判定就绪；管理本机进程失败与回收 |
 | network/server_connection.gd | TCP 连接与轮询、收发缓冲和发送队列、连接状态信号；不阻塞界面主线程 |
-| network/frame_codec.gd | 与 C++ 相同的长度帧格式和限制，处理半包/多包 |
 | protocol/messages.gd | 按 PROTOCOL.md 定义消息名称和客户端消息构造约定 |
 | protocol/message_codec.gd | 严格 JSON/UTF-8/重复键/深度检查、编解码、整数适配及服务端消息结构检查 |
 | state/client_state.gd | 保存身份、房间和个人牌局视图，处理 game_id/revision，发出状态变更信号 |
@@ -187,18 +177,14 @@ Asio 类型只在网络和应用运行调度中出现。协议层可依赖规则
 
 ```text
 acard_cards     → C++ 标准库
-acard_ids       → C++ 标准库（header-only）
 acard_game      → acard_cards
-acard_room      → acard_game、acard_ids
-acard_session   → acard_ids
-acard_network   → Asio、acard_ids
-acard_protocol  → acard_game、acard_room、acard_ids、nlohmann/json
-acard_server    → 上述模块、spdlog、nlohmann/json（配置）
+acard_server    → acard_game、Asio、nlohmann/json、spdlog
+                  初期包含 room、network、protocol、app 源文件
 acard_cli       → acard_game
 acard_tests     → 被测试模块、Catch2（不链接服务器 main）
 ```
 
-初版模块使用静态库或 header-only 目标，不引入 DLL/插件 ABI。Catch2 仅测试需要，Godot 不参与 CMake 编译。网络异步收发由一个事件循环线程执行，业务也在该线程顺序处理，回调不得执行阻塞等待。
+核心库保持独立，目录不必各自对应库目标。外围出现独立复用、测试或依赖隔离需要时，再拆 acard_room、acard_network、acard_protocol 等库；测试需要外围代码时先抽取相应目标，不链接 main。不引入 DLL/插件 ABI。Catch2 仅测试需要，Godot 不参与 CMake 编译。网络异步收发由一个事件循环线程执行，业务也在该线程顺序处理，回调不得执行阻塞等待。
 
 ## 8. 测试与命令行工具
 

@@ -1,8 +1,11 @@
 #include "hand_rules.h"
+#include "game_deck.h"
 #include "game_types.h"
 
 #include <array>
+#include <algorithm>
 #include <cstddef>
+#include <stdexcept>
 
 namespace acard::game {
 	
@@ -215,6 +218,46 @@ bool canBeat(
 
     // 普通牌型不能跨类别管牌，也不能压过炸弹。
     return false;
+}
+
+bool respectsIdentityPriority(
+    std::span<const cards::Card> hand,
+    std::span<const cards::Card> selected,
+    std::size_t player_count
+) {
+    // 合法校验
+    if (player_count != 3 && player_count != 4) {
+        throw std::invalid_argument(
+            "player_count must be three or four."
+        );
+    }
+
+    std::size_t held_identity_count = 0;
+    std::size_t selected_ace_count = 0;
+    std::size_t selected_identity_count = 0;
+
+    // 统计当前完整手牌中身份牌数量
+    for (const cards::Card& card : hand) {
+        if (isIdentityCard(card, player_count)) {
+            ++held_identity_count;
+        }
+    }
+
+    // 统计本次打出的 A，以及其中的身份牌
+    for (const cards::Card& card : selected) {
+        if (card.rank_ == cards::Rank::Ace) {
+            ++selected_ace_count;
+        }
+        if (isIdentityCard(card, player_count)) {
+            ++selected_identity_count;
+        }
+    }
+
+    // 判断：是否先出了身份牌
+    const std::size_t required_identity_count =
+        std::min(held_identity_count, selected_ace_count);
+
+    return selected_identity_count == required_identity_count;
 }
 
 }

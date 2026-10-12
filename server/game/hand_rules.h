@@ -42,4 +42,18 @@ bool canBeat(
     const HandPattern& target
 );
 
+/*
+ * @brief   检查本次选牌是否满足身份牌 A 优先规则。
+ *
+ * @details
+ *          - hand 是合法且没有重复实体牌的完整当前手牌；
+ *          - selected 已通过牌型识别，且每张牌都属于 hand。
+ *
+ */
+bool respectsIdentityPriority(
+    std::span<const cards::Card> hand,
+    std::span<const cards::Card> selected,
+    std::size_t player_count
+);
+
 } // namespace acard::game
